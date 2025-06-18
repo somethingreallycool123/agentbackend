@@ -12,6 +12,16 @@ This repo contains a FastAPI server built with LangChain and a simple Tauri fron
 python app_langchain.py
 ```
 
+Set your LLM API keys and optional database connection in `.env`. Example
+variables are provided in `.env.example`.
+
+### Endpoints
+
+* `POST /chat` - Send a prompt and optional chat history. Pass a `provider`
+  field of `openai`, `claude`, or `gemini` to choose the LLM.
+* `POST /embed` - Add text or a `file:PATH` specification to the persistent
+  vector database.
+
 Endpoints require an API key supplied via the `X-API-Key` header. The key is
 configured via the `API_KEY` variable in the environment.
 
