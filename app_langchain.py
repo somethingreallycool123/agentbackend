@@ -14,6 +14,10 @@ from langchain.vectorstores import Chroma
 from langchain.utilities import SQLDatabase
 from langchain.chains import SQLDatabaseChain
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
 
 class ChatRequest(BaseModel):
     provider: str
@@ -23,10 +27,17 @@ class ChatRequest(BaseModel):
 
 app = FastAPI()
 
-# Global memory and vector store
+# Global memory and vector stores
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-embeddings = OpenAIEmbeddings()
-vector_db = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
+
+TEXT_EMBED_MODEL = os.getenv("TEXT_EMBED_MODEL", "text-embedding-3-small")
+CODE_EMBED_MODEL = os.getenv("CODE_EMBED_MODEL", "text-embedding-ada-002")
+
+text_embeddings = OpenAIEmbeddings(model=TEXT_EMBED_MODEL)
+code_embeddings = OpenAIEmbeddings(model=CODE_EMBED_MODEL)
+
+text_vector_db = Chroma(persist_directory="./chroma_text_db", embedding_function=text_embeddings)
+code_vector_db = Chroma(persist_directory="./chroma_code_db", embedding_function=code_embeddings)
 
 # Configure SQL database
 SQL_URI = os.getenv("SQL_URI", "sqlite:///data.db")
@@ -35,10 +46,16 @@ sql_database = SQLDatabase.from_uri(SQL_URI)
 
 def get_llm(provider: str):
     if provider == "openai":
+        if not OPENAI_API_KEY:
+            raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
         return ChatOpenAI(model_name="gpt-4o", temperature=0.6)
     if provider == "claude":
+        if not ANTHROPIC_API_KEY:
+            raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not set")
         return ChatAnthropic(model="claude-3-haiku-20240307", temperature=0.6)
     if provider == "gemini":
+        if not GOOGLE_API_KEY:
+            raise HTTPException(status_code=500, detail="GOOGLE_API_KEY is not set")
         return ChatGoogleGenerativeAI(model="gemini-1.5-flash")
     raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 
@@ -85,9 +102,32 @@ def web_get(url: str) -> str:
         return f"Error: {str(e)}"
 
 
-def vector_search(query: str) -> str:
-    docs = vector_db.similarity_search(query, k=4)
+def vector_search_text(query: str) -> str:
+    docs = text_vector_db.similarity_search(query, k=4)
     return "\n".join(d.page_content for d in docs)
+
+
+def vector_search_code(query: str) -> str:
+    docs = code_vector_db.similarity_search(query, k=4)
+    return "\n".join(d.page_content for d in docs)
+
+
+def vector_add_text(content: str) -> str:
+    text_vector_db.add_texts([content])
+    return "ok"
+
+
+def vector_add_code(content: str) -> str:
+    code_vector_db.add_texts([content])
+    return "ok"
+
+
+def list_dir(path: str) -> str:
+    try:
+        files = os.listdir(path)
+        return "\n".join(files)
+    except Exception as e:
+        return f"Error listing directory {path}: {str(e)}"
 
 
 def sql_query(q: str) -> str:
@@ -102,8 +142,12 @@ def build_agent(provider: str):
         Tool(name="terminal", func=run_terminal, description="Execute a shell command"),
         Tool(name="read_file", func=read_file, description="Read a file"),
         Tool(name="write_file", func=write_file, description="Write content to a file. Format: path|content"),
+        Tool(name="list_dir", func=list_dir, description="List files in a directory"),
         Tool(name="web_get", func=web_get, description="Fetch a web page via HTTP GET"),
-        Tool(name="vector_search", func=vector_search, description="Search the vector database"),
+        Tool(name="vector_search_text", func=vector_search_text, description="Search the text vector database"),
+        Tool(name="vector_search_code", func=vector_search_code, description="Search the code vector database"),
+        Tool(name="vector_add_text", func=vector_add_text, description="Add a text document to the text vector DB"),
+        Tool(name="vector_add_code", func=vector_add_code, description="Add a code snippet to the code vector DB"),
         Tool(name="sql_query", func=sql_query, description="Run an SQL query"),
     ]
     agent = initialize_agent(
