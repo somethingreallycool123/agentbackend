@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Artemis Agent</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Satoshi:wght@400;500;600;700&display=swap');
+    
+    * {
+      font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    
+    body { 
+      margin: 0; 
+      background: transparent; 
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    #app { 
+      position: relative; 
+      width: 100vw; 
+      height: 100vh; 
+      padding: 1.5rem; 
+      -webkit-app-region: drag;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+
+    /* ORIGINAL GLASSMORPHISM - RESTORED */
+    .theme-light .glass-backdrop {
+      background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.18) 0%,
+        rgba(255, 255, 255, 0.10) 50%,
+        rgba(255, 255, 255, 0.08) 100%
+      );
+      backdrop-filter: blur(20px) saturate(1.2);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .theme-dark .glass-backdrop {
+      background: linear-gradient(135deg, 
+        rgba(20, 20, 20, 0.95) 0%,
+        rgba(10, 10, 10, 0.98) 50%,
+        rgba(0, 0, 0, 0.99) 100%
+      );
+      backdrop-filter: blur(25px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 
+        0 8px 40px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    /* Glassmorphism backdrop - COMPLETELY HIDDEN in expanded mode */
+    .glass-backdrop {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    /* EXPANDED MODE - COMPLETELY TRANSPARENT AND INVISIBLE */
+    .mode-expanded .glass-backdrop {
+      display: none !important;
+    }
+
+    .mode-expanded #app {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .mode-expanded body {
+      background: transparent !important;
+    }
+
+    /* Compact mode (default) */
+    .mode-compact #grid { 
+      display: grid; 
+      grid-template: repeat(2, 1fr) / repeat(2, 1fr); 
+      gap: 0.75rem; 
+      position: relative;
+      z-index: 2;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Expanded mode - ULTRA minimal padding */
+    .mode-expanded #grid {
+      display: none;
+    }
+
+    .mode-expanded #app {
+      padding: 0; /* No padding at all for floating effect */
+      justify-content: center; /* Center the floating chat */
+    }
+
+    /* Original shortcut cards */
+    .theme-light .shortcut {
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #374151;
+      box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.08),
+        0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .theme-dark .shortcut {
+      background: rgba(40, 40, 40, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e5e7eb;
+      box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .shortcut {
+      -webkit-app-region: no-drag;
+      border-radius: 18px;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .shortcut::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .theme-light .shortcut::before {
+      background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0.05) 100%
+      );
+    }
+
+    .theme-dark .shortcut::before {
+      background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0.02) 100%
+      );
+    }
+
+    .shortcut:hover::before {
+      opacity: 1;
+    }
+
+    .shortcut:hover {
+      transform: translateY(-6px) scale(1.08);
+    }
+
+    .theme-light .shortcut:hover {
+      box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.15),
+        0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .theme-dark .shortcut:hover {
+      box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        0 4px 12px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .shortcut:active {
+      transform: translateY(-3px) scale(1.04);
+      transition: all 0.15s ease;
+    }
+
+    .shortcut .iconify {
+      font-size: 18px;
+      z-index: 1;
+      position: relative;
+      transition: color 0.3s ease;
+    }
+
+    .theme-light .shortcut:hover .iconify {
+      color: #1f2937;
+    }
+
+    .theme-dark .shortcut:hover .iconify {
+      color: #f9fafb;
+    }
+
+    /* Chat container - floating design */
+    #chat-container {
+      -webkit-app-region: drag;
+      position: absolute;
+      left: 1.5rem;
+      right: 1.5rem;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+    }
+
+    .mode-compact #chat-container {
+      bottom: 0;
+      transform: translateY(calc(100% - 6px));
+    }
+
+    .mode-compact #chat-container.visible {
+      transform: translateY(-1.5rem);
+    }
+
+    /* FLOATING CHAT - No positioning constraints */
+    .mode-expanded #chat-container {
+      position: relative;
+      left: auto;
+      right: auto;
+      bottom: auto;
+      transform: none;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      -webkit-app-region: no-drag;
+    }
+
+    /* Original chat input */
+    .theme-light #chat-input {
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #374151;
+      box-shadow: 
+        0 6px 25px rgba(0, 0, 0, 0.08),
+        0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .theme-dark #chat-input {
+      background: rgba(30, 30, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e5e7eb;
+      box-shadow: 
+        0 6px 25px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    #chat-input {
+      -webkit-app-region: no-drag;
+      width: 100%;
+      backdrop-filter: blur(20px);
+      border-radius: 26px;
+      padding: 14px 22px;
+      font-size: 14px;
+      font-weight: 500;
+      outline: none;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .theme-light #chat-input:focus {
+      border-color: rgba(99, 102, 241, 0.6);
+      box-shadow: 
+        0 8px 35px rgba(0, 0, 0, 0.12),
+        0 0 0 4px rgba(99, 102, 241, 0.08);
+      background: rgba(255, 255, 255, 0.99);
+    }
+
+    .theme-dark #chat-input:focus {
+      border-color: rgba(139, 92, 246, 0.6);
+      box-shadow: 
+        0 8px 35px rgba(0, 0, 0, 0.6),
+        0 0 0 4px rgba(139, 92, 246, 0.1);
+      background: rgba(20, 20, 20, 0.98);
+    }
+
+    #chat-input:focus {
+      transform: translateY(-1px);
+    }
+
+    .theme-light #chat-input::placeholder {
+      color: #9CA3AF;
+    }
+
+    .theme-dark #chat-input::placeholder {
+      color: #6B7280;
+    }
+
+    /* Expanded chat mode - floating input */
+    .mode-expanded #chat-input {
+      padding: 16px 24px;
+      font-size: 15px;
+      border-radius: 28px;
+      max-width: 800px; /* Limit width for better UX */
+    }
+
+    /* Back button in expanded mode - floating */
+    #back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+      z-index: 30;
+    }
+
+    .mode-expanded #back-button {
+      display: flex;
+    }
+
+    .theme-light #back-button {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      color: #374151;
+      box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.08),
+        0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .theme-dark #back-button {
+      background: rgba(30, 30, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e5e7eb;
+      box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    #back-button:hover {
+      transform: scale(1.1);
+    }
+
+    /* Grid animations */
+    #grid.hidden {
+      transform: translateY(-3rem) scale(0.9);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Peek indicator */
+    .theme-light .chat-peek {
+      background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.3) 0%,
+        rgba(255, 255, 255, 0.8) 50%,
+        rgba(255, 255, 255, 0.3) 100%
+      );
+    }
+
+    .theme-dark .chat-peek {
+      background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.2) 0%,
+        rgba(255, 255, 255, 0.5) 50%,
+        rgba(255, 255, 255, 0.2) 100%
+      );
+    }
+
+    .chat-peek {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 3px;
+      border-radius: 2px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .mode-compact #chat-container.visible .chat-peek,
+    .mode-expanded .chat-peek {
+      opacity: 0;
+      transform: translateX(-50%) scale(0.8);
+    }
+
+    /* Settings panel - SOLID background only for settings */
+    #settings-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      transform: translateY(-100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #settings-panel.visible {
+      transform: translateY(0);
+    }
+
+    .theme-light #settings-panel .glass-backdrop {
+      background: #f8fafc !important;
+      border: 1px solid rgba(255, 255, 255, 0.8) !important;
+      backdrop-filter: none !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .theme-dark #settings-panel .glass-backdrop {
+      background: #1a1a1a !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      backdrop-filter: none !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    .settings-content {
+      padding: 1rem;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      -webkit-app-region: no-drag;
+      overflow-y: auto;
+    }
+
+    .settings-header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .settings-title {
+      font-size: 20px !important;
+      font-weight: 700 !important;
+      margin-bottom: 0.25rem !important;
+    }
+
+    .theme-light .settings-title {
+      color: #1f2937 !important;
+    }
+
+    .theme-dark .settings-title {
+      color: #f9fafb !important;
+    }
+
+    .settings-subtitle {
+      font-size: 12px !important;
+      font-weight: 500 !important;
+    }
+
+    .theme-light .settings-subtitle {
+      color: #6b7280 !important;
+    }
+
+    .theme-dark .settings-subtitle {
+      color: #9ca3af !important;
+    }
+
+    .settings-sections {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .settings-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .section-title {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      margin-bottom: 0.25rem !important;
+    }
+
+    .theme-light .section-title {
+      color: #374151 !important;
+    }
+
+    .theme-dark .section-title {
+      color: #e5e7eb !important;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .theme-light .setting-item {
+      background: rgba(255, 255, 255, 0.8) !important;
+      border: 1px solid rgba(255, 255, 255, 0.9) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .theme-dark .setting-item {
+      background: rgba(30, 30, 30, 0.8) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .setting-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      flex: 1;
+    }
+
+    .setting-label {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+    }
+
+    .theme-light .setting-label {
+      color: #1f2937 !important;
+    }
+
+    .theme-dark .setting-label {
+      color: #f9fafb !important;
+    }
+
+    .setting-description {
+      font-size: 11px !important;
+      font-weight: 400 !important;
+    }
+
+    .theme-light .setting-description {
+      color: #4b5563 !important;
+    }
+
+    .theme-dark .setting-description {
+      color: #d1d5db !important;
+    }
+
+    /* Compact toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 40px;
+      height: 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .theme-light .toggle-switch {
+      background: #e5e7eb;
+    }
+
+    .theme-dark .toggle-switch {
+      background: #374151;
+    }
+
+    .toggle-switch.active {
+      background: #6366f1;
+    }
+
+    .toggle-switch::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    .toggle-switch.active::before {
+      transform: translateX(20px);
+    }
+
+    /* Close button */
+    .close-button {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .theme-light .close-button {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border: 1px solid rgba(0, 0, 0, 0.1) !important;
+      color: #374151 !important;
+    }
+
+    .theme-dark .close-button {
+      background: rgba(40, 40, 40, 0.9) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      color: #e5e7eb !important;
+    }
+
+    .close-button:hover {
+      transform: scale(1.1);
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .mode-compact .chat-peek {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    .mode-compact #chat-container.visible .chat-peek {
+      animation: none;
+    }
+  </style>
+</head>
+<body class="theme-light">
+  <div id="app" class="mode-compact">
+    <!-- GLASSMORPHISM BACKDROP - COMPLETELY HIDDEN IN EXPANDED MODE -->
+    <div class="glass-backdrop"></div>
+
+    <!-- Back button for expanded mode - floating -->
+    <div id="back-button">
+      <span class="iconify" data-icon="lucide:arrow-left" style="font-size: 16px;"></span>
+    </div>
+
+    <!-- 2×2 grid of compact modern shortcuts -->
+    <div id="grid">
+      <div class="shortcut" data-action="navigate">
+        <span class="iconify" data-icon="lucide:arrow-left"></span>
+      </div>
+      <div class="shortcut" data-action="focus">
+        <span class="iconify" data-icon="lucide:brain-circuit"></span>
+      </div>
+      <div class="shortcut" data-action="chat">
+        <span class="iconify" data-icon="lucide:message-circle"></span>
+      </div>
+      <div class="shortcut" data-action="settings">
+        <span class="iconify" data-icon="lucide:settings"></span>
+      </div>
+    </div>
+
+    <!-- FLOATING chat container -->
+    <div id="chat-container">
+      <div class="chat-peek"></div>
+      <input id="chat-input"
+             type="text"
+             placeholder="Ask me anything..."
+             autocomplete="off"
+             spellcheck="false"/>
+    </div>
+
+    <!-- Solid Settings panel -->
+    <div id="settings-panel">
+      <div class="glass-backdrop"></div>
+      <div class="close-button" id="close-settings">
+        <span class="iconify" data-icon="lucide:x" style="font-size: 14px;"></span>
+      </div>
+      <div class="settings-content">
+        <div class="settings-header">
+          <h2 class="settings-title">Settings</h2>
+          <p class="settings-subtitle">Customize your Artemis experience</p>
+        </div>
+        
+        <div class="settings-sections">
+          <!-- Appearance Section -->
+          <div class="settings-section">
+            <h3 class="section-title">
+              <span class="iconify" data-icon="lucide:palette" style="font-size: 12px;"></span>
+              Appearance
+            </h3>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Dark Theme</span>
+                <span class="setting-description">Switch between light and dark modes</span>
+              </div>
+              <div class="toggle-switch" id="theme-toggle"></div>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Auto-expand Chat</span>
+                <span class="setting-description">Automatically expand chat on hover</span>
+              </div>
+              <div class="toggle-switch active" id="auto-expand-toggle"></div>
+            </div>
+          </div>
+
+          <!-- AI Section -->
+          <div class="settings-section">
+            <h3 class="section-title">
+              <span class="iconify" data-icon="lucide:brain" style="font-size: 12px;"></span>
+              AI Assistant
+            </h3>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Auto-suggestions</span>
+                <span class="setting-description">Show suggested prompts while typing</span>
+              </div>
+              <div class="toggle-switch active" id="suggestions-toggle"></div>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Save Conversations</span>
+                <span class="setting-description">Store chat history locally</span>
+              </div>
+              <div class="toggle-switch active" id="save-conversations-toggle"></div>
+            </div>
+          </div>
+
+          <!-- Privacy Section -->
+          <div class="settings-section">
+            <h3 class="section-title">
+              <span class="iconify" data-icon="lucide:shield" style="font-size: 12px;"></span>
+              Privacy
+            </h3>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Analytics</span>
+                <span class="setting-description">Help improve Artemis with usage data</span>
+              </div>
+              <div class="toggle-switch" id="analytics-toggle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

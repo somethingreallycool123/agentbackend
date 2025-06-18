@@ -1,7 +1,9 @@
 import os
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+
+from fastapi import FastAPI, HTTPException, Header, Depends
 from pydantic import BaseModel
 
 from langchain.chat_models import ChatOpenAI
@@ -28,6 +30,8 @@ class EmbedRequest(BaseModel):
     from_file: bool = False
 
 
+load_dotenv()
+
 app = FastAPI()
 
 # Global memory and vector store
@@ -38,6 +42,13 @@ vector_db = Chroma(persist_directory="./chroma_db", embedding_function=embedding
 # Configure SQL database
 SQL_URI = os.getenv("SQL_URI", "sqlite:///data.db")
 sql_database = SQLDatabase.from_uri(SQL_URI)
+
+API_KEY = os.getenv("API_KEY")
+
+
+def verify_key(x_api_key: str = Header(None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
 
 def get_llm(provider: str):
@@ -140,7 +151,7 @@ def build_agent(provider: str):
 
 
 @app.post("/chat")
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, _: str = Depends(verify_key)):
     agent = build_agent(req.provider)
     if req.history:
         for msg in req.history:
@@ -150,7 +161,7 @@ def chat(req: ChatRequest):
 
 
 @app.post("/embed")
-def embed(req: EmbedRequest):
+def embed(req: EmbedRequest, _: str = Depends(verify_key)):
     text_spec = req.text
     if req.from_file:
         text_spec = f"file:{req.text}"
