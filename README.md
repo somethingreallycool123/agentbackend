@@ -31,7 +31,16 @@ Start the backend with:
 ```bash
 python app_langchain.py
 ```
+### CLI
 
+For quick local testing without the frontend you can run `agent_cli.py`. It
+prompts for user input and prints the agent's replies:
+
+```bash
+python agent_cli.py --provider openai
+```
+
+=======
 ### Tools
 
 The agent exposes several tools:
